@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess AI — Play Against the Bot</title>
+    <meta name="description" content="Play chess against a neural network AI with minimax search. Beautiful web-based chess interface.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Clean background -->
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo">
+                    <div class="logo-icon">♛</div>
+                    <div class="logo-text">
+                        <span class="logo-title">Chess AI</span>
+                        <span class="logo-subtitle">Neural Network Engine</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-badge" id="statusBadge">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Ready</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <main class="main-content">
+            <!-- Left panel: Board -->
+            <div class="board-panel">
+                <!-- Opponent Card (Top) -->
+                <div class="player-card ai-player" id="topPlayerCard">
+                    <div class="player-avatar">
+                        <div class="avatar-icon ai" id="topAvatar">🤖</div>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name" id="topName">Chess AI</div>
+                        <div class="player-detail" id="topDetail">MLP + Minimax α-β</div>
+                    </div>
+                    <div class="player-clock" id="topCaptured"></div>
+                </div>
+
+                <div class="board-wrapper">
+                    <!-- Rank labels (numbers) -->
+                    <div class="rank-labels" id="rankLabels"></div>
+                    
+                    <!-- Eval Bar -->
+                    <div class="eval-bar-container">
+                        <div class="eval-bar" id="evalBar">
+                            <div class="eval-fill white-fill" id="evalFill"></div>
+                            <span class="eval-text" id="evalText">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- The chess board -->
+                    <div class="chess-board" id="chessBoard"></div>
+                    
+                    <!-- File labels (letters) -->
+                    <div class="file-labels" id="fileLabels"></div>
+                </div>
+
+                <!-- Player Card (Bottom) -->
+                <div class="player-card human-player" id="bottomPlayerCard">
+                    <div class="player-avatar">
+                        <div class="avatar-icon human" id="bottomAvatar">👤</div>
+                    </div>
+                    <div class="player-info">
+                        <div class="player-name" id="bottomName">You</div>
+                        <div class="player-detail" id="bottomDetail">Playing as White</div>
+                    </div>
+                    <div class="player-clock" id="bottomCaptured"></div>
+                </div>
+            </div>
+
+            <!-- Right panel: Controls & info -->
+            <div class="info-panel">
+                <!-- Move history -->
+                <div class="move-history-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">Move History</span>
+                        <span class="move-counter" id="moveCounter">0 moves</span>
+                    </div>
+                    <div class="move-history" id="moveHistory">
+                        <div class="move-placeholder">Start a new game to begin...</div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="controls-panel">
+                    <button class="btn btn-primary" id="btnNewGame" onclick="showNewGameDialog()">
+                        <span class="btn-icon">⟳</span> New Game
+                    </button>
+                    <button class="btn btn-secondary" id="btnUndo" onclick="undoMove()">
+                        <span class="btn-icon">↶</span> Undo
+                    </button>
+                    <button class="btn btn-ghost" id="btnFlip" onclick="flipBoard()">
+                        <span class="btn-icon">⇅</span> Flip
+                    </button>
+                </div>
+                
+                <!-- Extra settings -->
+                <div class="settings-panel" style="display: flex; gap: 12px; margin-bottom: 24px; padding: 0 12px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-secondary); font-size: 13px;">
+                        <input type="checkbox" id="toggleEval" checked onchange="toggleEvalBar()" style="accent-color: var(--accent-primary);">
+                        Show Eval Bar
+                    </label>
+                </div>
+
+                <!-- Game info -->
+                <div class="game-info-panel">
+                    <div class="info-row">
+                        <span class="info-label">Engine</span>
+                        <span class="info-value">MLP + PST</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Search</span>
+                        <span class="info-value">α-β Depth 4 + Quiescence</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Move Ordering</span>
+                        <span class="info-value">Neural Network Policy</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- New Game Dialog -->
+    <div class="modal-overlay" id="newGameModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>New Game</h2>
+                <button class="modal-close" onclick="hideNewGameDialog()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">Choose your side</p>
+                <div class="color-picker">
+                    <button class="color-option selected" id="optWhite" onclick="selectColor('white')">
+                        <div class="color-piece white-piece"></div>
+                        <span>White</span>
+                        <span class="color-hint">You move first</span>
+                    </button>
+                    <button class="color-option" id="optBlack" onclick="selectColor('black')">
+                        <div class="color-piece black-piece"></div>
+                        <span>Black</span>
+                        <span class="color-hint">AI moves first</span>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary btn-large" onclick="startNewGame()">
+                    Start Game
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Dialog -->
+    <div class="modal-overlay" id="gameOverModal">
+        <div class="modal-content game-over-modal">
+            <div class="game-over-icon" id="gameOverIcon">♛</div>
+            <h2 id="gameOverTitle">Game Over</h2>
+            <p id="gameOverMessage" class="game-over-message"></p>
+            <button class="btn btn-primary btn-large" onclick="hideGameOverDialog(); showNewGameDialog();">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <!-- Thinking overlay -->
+    <div class="thinking-overlay" id="thinkingOverlay">
+        <div class="thinking-content">
+            <div class="thinking-spinner"></div>
+            <span>AI is thinking...</span>
+        </div>
+    </div>
+
+    <!-- Promotion Modal -->
+    <div class="modal-overlay" id="promotionModal">
+        <div class="modal-content" style="max-width: 320px;">
+            <div class="modal-header">
+                <h2>Promote Pawn</h2>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <p>Choose a piece to promote to:</p>
+                <div class="promotion-options" id="promotionOptions" style="display: flex; justify-content: center; gap: 16px; margin-top: 20px;">
+                    <!-- Pieces injected via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
