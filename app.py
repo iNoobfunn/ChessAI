@@ -12,6 +12,7 @@ sys.path.insert(0, BASE_DIR)
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 import chess
+import math
 
 import config
 from src.model import load_model
@@ -29,6 +30,13 @@ print(f"[OK] Chess AI model loaded on {DEVICE}")
 
 # ── Game state (per-session, single player for simplicity) ──
 game_board = chess.Board()
+
+def sanitize_score(score):
+    if math.isinf(score):
+        return 999.99 if score > 0 else -999.99
+    if math.isnan(score):
+        return 0.0
+    return round(score / 100.0, 2)
 
 
 @app.route("/")
@@ -57,7 +65,7 @@ def new_game():
         game_board.push(ai_move)
         response["fen"] = game_board.fen()
         response["ai_move"] = ai_move.uci()
-        response["eval_score"] = round(raw_score / 100.0, 2)  # AI is White, so positive means White winning
+        response["eval_score"] = sanitize_score(raw_score)  # AI is White, so positive means White winning
 
     return jsonify(response)
 
@@ -108,7 +116,7 @@ def make_move():
             response["fen"] = game_board.fen()
             response["ai_move"] = ai_move.uci()
             response["ai_move_san"] = ai_san
-            response["eval_score"] = round(std_score / 100.0, 2)
+            response["eval_score"] = sanitize_score(std_score)
             response["game_over"] = game_board.is_game_over()
             response["result"] = _get_result()
         except Exception as e:

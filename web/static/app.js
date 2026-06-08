@@ -149,6 +149,76 @@ function renderBoard() {
             }
         }
     }
+
+    calculateMaterial();
+}
+
+function calculateMaterial() {
+    const pieceValues = { 'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9 };
+    const startingCounts = { 'p': 8, 'n': 2, 'b': 2, 'r': 2, 'q': 1, 'P': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1 };
+    
+    let currentCounts = { 'p': 0, 'n': 0, 'b': 0, 'r': 0, 'q': 0, 'P': 0, 'N': 0, 'B': 0, 'R': 0, 'Q': 0 };
+    let whiteScore = 0;
+    let blackScore = 0;
+
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            const p = boardState[r]?.[c];
+            if (p && currentCounts[p] !== undefined) {
+                currentCounts[p]++;
+                if (p === p.toUpperCase()) {
+                    whiteScore += pieceValues[p];
+                } else {
+                    blackScore += pieceValues[p];
+                }
+            }
+        }
+    }
+
+    const whiteCaptured = [];
+    const blackCaptured = [];
+    
+    // Pieces white has captured (black pieces missing)
+    ['q', 'r', 'b', 'n', 'p'].forEach(p => {
+        const missing = startingCounts[p] - currentCounts[p];
+        for (let i = 0; i < missing; i++) whiteCaptured.push(p);
+    });
+
+    // Pieces black has captured (white pieces missing)
+    ['Q', 'R', 'B', 'N', 'P'].forEach(p => {
+        const missing = startingCounts[p] - currentCounts[p];
+        for (let i = 0; i < missing; i++) blackCaptured.push(p);
+    });
+
+    const pieceIcons = {
+        'P': '♙', 'N': '♘', 'B': '♗', 'R': '♖', 'Q': '♕',
+        'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛'
+    };
+
+    const renderMaterial = (elementId, captured, isWhite) => {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        el.innerHTML = '';
+        
+        for (const p of captured) {
+            const span = document.createElement('span');
+            span.className = 'captured-piece-icon';
+            span.textContent = pieceIcons[p];
+            el.appendChild(span);
+        }
+
+        const scoreDiff = isWhite ? (whiteScore - blackScore) : (blackScore - whiteScore);
+        if (scoreDiff > 0) {
+            const diffSpan = document.createElement('span');
+            diffSpan.className = 'material-score';
+            diffSpan.textContent = `+${scoreDiff}`;
+            el.appendChild(diffSpan);
+        }
+    };
+
+    const playerIsWhite = playerColor === 'white';
+    renderMaterial('bottomMaterial', playerIsWhite ? whiteCaptured : blackCaptured, playerIsWhite);
+    renderMaterial('topMaterial', playerIsWhite ? blackCaptured : whiteCaptured, !playerIsWhite);
 }
 
 
@@ -802,12 +872,12 @@ function selectPromotion(promoChar) {
 
 function selectTime(minutes) {
     document.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
-    document.getElementById(`time${minutes}`).classList.add('selected');
+    document.getElementById(minutes === 0 ? 'timeNone' : `time${minutes}`).classList.add('selected');
     timeControlMs = minutes * 60 * 1000;
 }
 
 function timerLoop() {
-    if (!gameActive) return;
+    if (!gameActive || timeControlMs === 0) return;
 
     const now = Date.now();
     const dt = now - lastTickTime;
@@ -828,6 +898,15 @@ function updateClockDisplays() {
     const topEl = document.getElementById('topCaptured');
     const bottomEl = document.getElementById('bottomCaptured');
     if (!topEl || !bottomEl) return;
+    
+    if (timeControlMs === 0) {
+        topEl.style.display = 'none';
+        bottomEl.style.display = 'none';
+        return;
+    } else {
+        topEl.style.display = 'block';
+        bottomEl.style.display = 'block';
+    }
     
     topEl.textContent = formatTime(topTimeMs);
     bottomEl.textContent = formatTime(bottomTimeMs);

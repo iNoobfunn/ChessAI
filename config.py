@@ -26,15 +26,15 @@ DROPOUT        = 0.3
 
 # Training
 BATCH_SIZE     = 512
-EPOCHS         = 15
+EPOCHS         = 50
 LR             = 1e-3
 LR_STEP        = 5          # reduce LR every N epochs
 LR_GAMMA       = 0.5
 DEVICE         = "cuda"      # change to "cpu" if you don't have a GPU
 
 # Minimax
-SEARCH_DEPTH   = 4          # depth 4 for strong performance
-TIME_LIMIT_SEC = 5.0        # max seconds per move
+SEARCH_DEPTH   = 3          # depth 3 for faster responses
+TIME_LIMIT_SEC = 2.0        # max seconds per move
 
 # Tournament
 TOURNAMENT_GAMES    = 50    # games per Elo level

@@ -46,6 +46,7 @@
                         <div class="player-name" id="topName">Chess AI</div>
                         <div class="player-detail" id="topDetail">MLP + Minimax α-β</div>
                     </div>
+                    <div class="captured-material" id="topMaterial"></div>
                     <div class="player-clock" id="topCaptured">10:00</div>
                 </div>
 
@@ -77,6 +78,7 @@
                         <div class="player-name" id="bottomName">You</div>
                         <div class="player-detail" id="bottomDetail">Playing as White</div>
                     </div>
+                    <div class="captured-material" id="bottomMaterial"></div>
                     <div class="player-clock" id="bottomCaptured">10:00</div>
                 </div>
             </div>
@@ -158,6 +160,7 @@
                 
                 <p class="modal-description" style="margin-top: 24px;">Time Control</p>
                 <div class="time-picker">
+                    <button class="time-option" id="timeNone" onclick="selectTime(0)">None</button>
                     <button class="time-option" id="time5" onclick="selectTime(5)">5 min</button>
                     <button class="time-option selected" id="time10" onclick="selectTime(10)">10 min</button>
                     <button class="time-option" id="time15" onclick="selectTime(15)">15 min</button>
