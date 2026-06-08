@@ -31,6 +31,12 @@ let dragPiece = null;          // dragging state
 let gameActive = false;
 let checkSquare = null;        // {row, col} of king in check
 
+// ── Clock State ──────────────────────────────────────────
+let timeControlMs = 10 * 60 * 1000;
+let topTimeMs = timeControlMs;
+let bottomTimeMs = timeControlMs;
+let clockInterval = null;
+let lastTickTime = null;
 // ── Initialization ───────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     initBoard();
@@ -442,6 +448,8 @@ async function makeMove(uci) {
         // Check game over
         if (data.game_over && data.result) {
             gameActive = false;
+            if (clockInterval) clearInterval(clockInterval);
+            updateClockDisplays();
             showGameOverDialog(data.result);
         }
 
@@ -461,6 +469,10 @@ async function startNewGame() {
     playerColor = selectedColor?.id === 'optBlack' ? 'black' : 'white';
 
     hideNewGameDialog();
+    if (clockInterval) clearInterval(clockInterval);
+    topTimeMs = timeControlMs;
+    bottomTimeMs = timeControlMs;
+    updateClockDisplays();
     setThinking(true);
 
     try {
@@ -477,6 +489,9 @@ async function startNewGame() {
         checkSquare = null;
         moveList = [];
         gameActive = true;
+        
+        lastTickTime = Date.now();
+        clockInterval = setInterval(timerLoop, 100);
 
         // If AI made first move (player is black)
         if (data.ai_move) {
@@ -781,4 +796,89 @@ function selectPromotion(promoChar) {
     }
     
     pendingPromotion = null;
+}
+
+// ── Clock Logic ──────────────────────────────────────────
+
+function selectTime(minutes) {
+    document.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
+    document.getElementById(`time${minutes}`).classList.add('selected');
+    timeControlMs = minutes * 60 * 1000;
+}
+
+function timerLoop() {
+    if (!gameActive) return;
+
+    const now = Date.now();
+    const dt = now - lastTickTime;
+    lastTickTime = now;
+
+    if (isThinking) {
+        topTimeMs = Math.max(0, topTimeMs - dt);
+        if (topTimeMs === 0) handleTimeout('top');
+    } else {
+        bottomTimeMs = Math.max(0, bottomTimeMs - dt);
+        if (bottomTimeMs === 0) handleTimeout('bottom');
+    }
+    
+    updateClockDisplays();
+}
+
+function updateClockDisplays() {
+    const topEl = document.getElementById('topCaptured');
+    const bottomEl = document.getElementById('bottomCaptured');
+    if (!topEl || !bottomEl) return;
+    
+    topEl.textContent = formatTime(topTimeMs);
+    bottomEl.textContent = formatTime(bottomTimeMs);
+
+    if (gameActive) {
+        if (isThinking) {
+            topEl.classList.add('active');
+            bottomEl.classList.remove('active');
+        } else {
+            topEl.classList.remove('active');
+            bottomEl.classList.add('active');
+        }
+    } else {
+        topEl.classList.remove('active');
+        bottomEl.classList.remove('active');
+    }
+
+    topEl.classList.toggle('low-time', topTimeMs > 0 && topTimeMs <= 30000);
+    bottomEl.classList.toggle('low-time', bottomTimeMs > 0 && bottomTimeMs <= 30000);
+}
+
+function formatTime(ms) {
+    if (ms <= 0) return "00:00";
+    
+    const totalSeconds = Math.ceil(ms / 1000);
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    
+    if (ms <= 10000) {
+        const sec = Math.floor(ms / 1000);
+        const tenths = Math.floor((ms % 1000) / 100);
+        return `00:${sec.toString().padStart(2, '0')}.${tenths}`;
+    }
+    
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function handleTimeout(player) {
+    gameActive = false;
+    if (clockInterval) clearInterval(clockInterval);
+    updateClockDisplays();
+    
+    let resStr = '';
+    if (player === 'top') {
+        resStr = (playerColor === 'white') ? '1-0' : '0-1';
+    } else {
+        resStr = (playerColor === 'white') ? '0-1' : '1-0';
+    }
+    
+    showGameOverDialog({
+        result: resStr,
+        message: "Timeout"
+    });
 }
