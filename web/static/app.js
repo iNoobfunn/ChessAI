@@ -31,6 +31,10 @@ let dragPiece = null;          // dragging state
 let gameActive = false;
 let checkSquare = null;        // {row, col} of king in check
 
+// ── History Tracking ─────────────────────────────────────
+let fenHistory = [];
+let currentViewIndex = 0;
+
 // ── Clock State ──────────────────────────────────────────
 let timeControlMs = 10 * 60 * 1000;
 let topTimeMs = timeControlMs;
@@ -335,6 +339,7 @@ function onSquareClick(displayRow, displayCol) {
 
 function onPieceMouseDown(e, displayRow, displayCol) {
     if (isThinking || !gameActive) return;
+    if (currentViewIndex < fenHistory.length - 1) return;
 
     const actual = fromDisplayCoords(displayRow, displayCol);
     if (!isPlayerPiece(actual.row, actual.col)) return;
@@ -488,6 +493,8 @@ async function makeMove(uci) {
         
         // Update board after player move
         boardState = parseFEN(data.fen);
+        fenHistory.push(data.fen);
+        currentViewIndex = fenHistory.length - 1;
 
         // Record player move
         const playerSan = data.player_move_san;
@@ -499,6 +506,13 @@ async function makeMove(uci) {
             const aiTo = algebraicToSquare(data.ai_move.substring(2, 4));
             lastMove = { from: aiFrom, to: aiTo };
             addMoveToHistory(data.ai_move_san, playerColor === 'white' ? 'black' : 'white');
+            
+            // Push AI move FEN
+            if (data.ai_fen) {
+                fenHistory.push(data.ai_fen);
+                currentViewIndex = fenHistory.length - 1;
+                boardState = parseFEN(data.ai_fen);
+            }
         } else {
             // Record player's last move
             const pFrom = algebraicToSquare(uci.substring(0, 2));
@@ -523,9 +537,6 @@ async function makeMove(uci) {
             showGameOverDialog(data.result);
         }
 
-        if (data.eval_score !== undefined) {
-            updateEvalBar(data.eval_score);
-        }
 
     } catch (e) {
         console.error('Move failed:', e);
@@ -558,6 +569,8 @@ async function startNewGame() {
         lastMove = null;
         checkSquare = null;
         moveList = [];
+        fenHistory = [data.fen];
+        currentViewIndex = 0;
         gameActive = true;
         
         lastTickTime = Date.now();
@@ -569,7 +582,11 @@ async function startNewGame() {
             const aiTo = algebraicToSquare(data.ai_move.substring(2, 4));
             lastMove = { from: aiFrom, to: aiTo };
             // We need to get the SAN for the AI move
-            addMoveToHistory(data.ai_move, 'white');
+            addMoveToHistory(data.ai_move_san, 'white');
+            if (data.fen) {
+                fenHistory.push(data.fen);
+                currentViewIndex = 1;
+            }
         }
 
         // Auto-flip board if playing black
@@ -587,11 +604,6 @@ async function startNewGame() {
         renderMoveHistory();
         renderBoard();
 
-        if (data.eval_score !== undefined) {
-            updateEvalBar(data.eval_score);
-        } else {
-            updateEvalBar(0.00);
-        }
 
     } catch (e) {
         console.error('New game failed:', e);
@@ -600,61 +612,12 @@ async function startNewGame() {
     setThinking(false);
 }
 
-async function undoMove() {
-    if (isThinking) return;
-
-    try {
-        const res = await fetch('/api/undo', { method: 'POST' });
-        const data = await res.json();
-        boardState = parseFEN(data.fen);
-        selectedSquare = null;
-        lastMove = null;
-        checkSquare = null;
-        gameActive = !data.game_over;
-
-        // Remove last two entries from move history
-        if (moveList.length > 0) {
-            const last = moveList[moveList.length - 1];
-            if (last.black) {
-                last.black = null;
-            } else {
-                moveList.pop();
-            }
-            if (moveList.length > 0) {
-                const prev = moveList[moveList.length - 1];
-                if (prev.black) {
-                    prev.black = null;
-                } else {
-                    moveList.pop();
-                }
-            }
-        }
-
-        await fetchLegalMoves();
-        renderMoveHistory();
-        renderBoard();
-    } catch (e) {
-        console.error('Undo failed:', e);
-    }
-}
-
 function flipBoard() {
     boardFlipped = !boardFlipped;
     updateLabels();
     renderBoard();
     
-    // Update eval bar rotation based on flip
-    const evalBar = document.getElementById('evalBar');
-    const evalText = document.getElementById('evalText');
-    if (evalBar && evalText) {
-        if (boardFlipped) {
-            evalBar.style.transform = 'rotate(180deg)';
-            evalText.style.transform = 'rotate(180deg)';
-        } else {
-            evalBar.style.transform = 'none';
-            evalText.style.transform = 'none';
-        }
-    }
+    
 }
 
 // ── Move History Management ──────────────────────────────
@@ -739,30 +702,7 @@ function updatePlayerCards() {
     }
 }
 
-function updateEvalBar(score) {
-    const evalFill = document.getElementById('evalFill');
-    const evalText = document.getElementById('evalText');
-    if (!evalFill || !evalText) return;
 
-    let percentage = 50 + (score / 10) * 50;
-    percentage = Math.max(5, Math.min(95, percentage));
-    
-    evalFill.style.height = `${percentage}%`;
-
-    let text = score > 0 ? `+${score.toFixed(2)}` : score.toFixed(2);
-    if (score === 0) text = "0.00";
-    evalText.textContent = text;
-    
-    if (percentage >= 50) {
-        evalText.style.bottom = '10px';
-        evalText.style.top = 'auto';
-        evalText.style.color = '#333';
-    } else {
-        evalText.style.top = '10px';
-        evalText.style.bottom = 'auto';
-        evalText.style.color = '#e2e2e2';
-    }
-}
 
 // ── Dialogs ──────────────────────────────────────────────
 function showNewGameDialog() {
@@ -785,38 +725,30 @@ function showGameOverDialog(result) {
     const message = document.getElementById('gameOverMessage');
 
     let playerWon = false;
-    if (result.result === '1-0') playerWon = (playerColor === 'white');
-    if (result.result === '0-1') playerWon = (playerColor === 'black');
+    let whiteWon = result.result === '1-0';
+    let blackWon = result.result === '0-1';
+    if (whiteWon) playerWon = (playerColor === 'white');
+    if (blackWon) playerWon = (playerColor === 'black');
     const isDraw = result.result === '1/2-1/2';
 
     if (isDraw) {
-        icon.textContent = '🤝';
-        title.textContent = 'Draw!';
+        icon.textContent = '½';
+        title.textContent = 'Draw';
         message.textContent = result.message;
-    } else if (playerWon) {
-        icon.textContent = '🏆';
-        title.textContent = 'You Win!';
-        message.textContent = 'Congratulations! You defeated the AI.';
     } else {
-        icon.textContent = '♛';
-        title.textContent = 'AI Wins';
-        message.textContent = 'The neural network prevails. Try again!';
+        icon.textContent = playerWon ? '🏆' : '☠️';
+        title.textContent = (whiteWon ? 'White' : 'Black') + ' Won';
+        message.textContent = result.message;
     }
 
     modal.classList.add('visible');
 }
 
 function hideGameOverDialog() {
-    document.getElementById('gameOverModal').classList.remove('visible');
+    document.getElementById('gameOverModal').style.display = 'none';
 }
 
-function toggleEvalBar() {
-    const isChecked = document.getElementById('toggleEval').checked;
-    const evalContainer = document.querySelector('.eval-bar-container');
-    if (evalContainer) {
-        evalContainer.style.display = isChecked ? 'block' : 'none';
-    }
-}
+
 
 let pendingPromotion = null;
 
@@ -839,6 +771,10 @@ function showPromotionDialog(moves, toActual, fromActual) {
     });
     
     modal.classList.add('visible');
+}
+
+function hidePromotionDialog() {
+    document.getElementById('promotionModal').style.display = 'none';
 }
 
 function selectPromotion(promoChar) {
@@ -960,4 +896,45 @@ function handleTimeout(player) {
         result: resStr,
         message: "Timeout"
     });
+}
+
+// ── History Navigation ───────────────────────────────────
+
+function updateHistoryView() {
+    if (fenHistory.length === 0) return;
+    boardState = parseFEN(fenHistory[currentViewIndex]);
+    
+    // Clear check/lastmove highlights if we go back
+    if (currentViewIndex < fenHistory.length - 1) {
+        checkSquare = null;
+        lastMove = null; 
+    }
+    
+    renderBoard();
+}
+
+function goToStart() {
+    if (fenHistory.length === 0) return;
+    currentViewIndex = 0;
+    updateHistoryView();
+}
+
+function goPrev() {
+    if (currentViewIndex > 0) {
+        currentViewIndex--;
+        updateHistoryView();
+    }
+}
+
+function goNext() {
+    if (currentViewIndex < fenHistory.length - 1) {
+        currentViewIndex++;
+        updateHistoryView();
+    }
+}
+
+function goToLatest() {
+    if (fenHistory.length === 0) return;
+    currentViewIndex = fenHistory.length - 1;
+    updateHistoryView();
 }

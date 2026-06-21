@@ -96,17 +96,26 @@
                     </div>
                 </div>
 
-                <!-- Controls -->
-                <div class="controls-panel">
-                    <button class="btn btn-primary" id="btnNewGame" onclick="showNewGameDialog()">
-                        <span class="btn-icon">⟳</span> New Game
-                    </button>
-                    <button class="btn btn-secondary" id="btnUndo" onclick="undoMove()">
-                        <span class="btn-icon">↶</span> Undo
-                    </button>
-                    <button class="btn btn-ghost" id="btnFlip" onclick="flipBoard()">
-                        <span class="btn-icon">⇅</span> Flip
-                    </button>
+                <!-- Controls grouped for mobile grid -->
+                <div class="controls-wrapper">
+                    <div class="history-controls">
+                        <button class="btn btn-ghost history-btn" id="btnHistStart" onclick="goToStart()" title="Go to Start">|◀</button>
+                        <button class="btn btn-ghost history-btn" id="btnHistPrev" onclick="goPrev()" title="Previous Move">◀</button>
+                        <button class="btn btn-ghost history-btn" id="btnHistNext" onclick="goNext()" title="Next Move">▶</button>
+                        <button class="btn btn-ghost history-btn" id="btnHistEnd" onclick="goToLatest()" title="Latest Move">▶|</button>
+                    </div>
+
+                    <div class="controls-panel">
+                        <button class="btn btn-primary" id="btnNewGame" onclick="showNewGameDialog()">
+                            <span class="btn-icon">⟳</span> New Game
+                        </button>
+                        <button class="btn btn-secondary" id="btnUndo" onclick="undoMove()">
+                            <span class="btn-icon">↶</span> Undo
+                        </button>
+                        <button class="btn btn-ghost" id="btnFlip" onclick="flipBoard()">
+                            <span class="btn-icon">⇅</span> Flip
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Extra settings -->
@@ -177,8 +186,9 @@
 
     <!-- Game Over Dialog -->
     <div class="modal-overlay" id="gameOverModal">
-        <div class="modal-content game-over-modal">
-            <div class="game-over-icon" id="gameOverIcon">♛</div>
+        <div class="modal-content game-over-modal" style="position: relative;">
+            <button class="close-modal-btn" onclick="hideGameOverDialog()" title="Close">&times;</button>
+            <div class="game-over-icon" id="gameOverIcon">🏆</div>
             <h2 id="gameOverTitle">Game Over</h2>
             <p id="gameOverMessage" class="game-over-message"></p>
             <button class="btn btn-primary btn-large" onclick="hideGameOverDialog(); showNewGameDialog();">

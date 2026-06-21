@@ -671,6 +671,7 @@ body {
 .controls-panel {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .btn {
@@ -1001,17 +1002,35 @@ body {
     .game-info-panel { display: none; }
 
     .board-wrapper {
-        grid-template-columns: 18px var(--board-size);
+        grid-template-columns: 18px 16px var(--board-size);
         grid-template-rows: var(--board-size) 18px;
+        grid-template-areas:
+            "ranks eval board"
+            ".     .    files";
     }
 }
 
 @media (max-width: 500px) {
     :root {
-        --board-size: min(360px, calc(100vw - 32px));
+        --board-size: calc(100vw - 42px);
     }
     
-    .app-container { padding: 0 12px; }
+    .app-header {
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: center;
+        text-align: center;
+        padding: 12px 0;
+    }
+
+    .header-left, .header-right {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .app-container { padding: 0; }
+    .info-panel { padding: 16px; }
+    .move-history-panel { border-radius: 8px; min-height: 60px; max-height: 100px; }
 }
 
 /* ── Utility Animations ───────────────────────────────── */
@@ -1031,4 +1050,66 @@ body {
 
 .scale-in {
     animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ── History Controls ─────────────────────────────────── */
+.history-controls {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+.history-btn {
+    flex: 1;
+    padding: 8px;
+    font-size: 14px;
+    border-radius: 4px;
+}
+.close-modal-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 24px;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+}
+.close-modal-btn:hover {
+    color: var(--text-primary);
+}
+
+/* ── Mobile Layout Grid ───────────────────────────────── */
+@media (max-width: 900px) {
+    .controls-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+    }
+    
+    .controls-panel {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+    }
+    
+    .controls-panel .btn {
+        width: 100%;
+        margin: 0;
+        padding: 12px 8px;
+    }
+}
+
+@media (max-width: 500px) {
+    .controls-panel {
+        grid-template-columns: 1fr 1fr;
+    }
+    .controls-panel #btnNewGame {
+        grid-column: span 2;
+    }
 }

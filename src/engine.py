@@ -6,6 +6,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from src.model import load_model
 from src.minimax import search
+from src.inference import predict_move
+from src.opening_book import book_move
+
 
 class ChessAIEngine:
     """
@@ -21,18 +24,29 @@ class ChessAIEngine:
         self.model  = load_model(checkpoint_path, device)
         print(f"Engine loaded from {checkpoint_path} on {device}")
 
-    def get_move(self, board: chess.Board,
-                   use_search: bool = True) -> chess.Move:
-        """
-        Returns the engine's chosen move.
-        use_search=True : minimax depth-3 (recommended)
-        use_search=False: pure neural net prediction (faster, weaker)
-        """
+    def get_move_with_eval(self, board: chess.Board, use_search: bool = True,
+                           use_book: bool = True):
+        """Return (move, eval_centipawns)."""
+        # Opening book / sampled variety for the first few plies (#7)
+        if use_book and len(board.move_stack) < config.OPENING_BOOK_PLIES:
+            bm = book_move(board)
+            if bm is not None:
+                return bm, 0.0
+            move, _ = predict_move(board, self.model, self.device,
+                                   temperature=config.OPENING_TEMPERATURE)
+            return move, 0.0
+
         if use_search:
-            return search(board, self.model, self.device)
-        else:
-            from src.inference import predict_move
-            return predict_move(board, self.model, self.device)
+            return search(board, self.model, self.device,
+                          depth=config.SEARCH_DEPTH,
+                          time_limit=config.TIME_LIMIT_SEC)
+        move, val = predict_move(board, self.model, self.device, temperature=0.0)
+        return move, val * 1000.0
+
+    def get_move(self, board: chess.Board, use_search: bool = True) -> chess.Move:
+        """Return just the chosen move."""
+        move, _ = self.get_move_with_eval(board, use_search=use_search)
+        return move
 
 
 # ── Play a quick game vs random mover to verify ────────

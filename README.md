@@ -1,7 +1,23 @@
 # Chess AI
 
-A supervised chess move predictor with minimax alpha-beta search wrapper.
-Neural network (MLP) trained on Lichess games, with a beautiful web UI to play against it.
+A supervised chess engine: a **residual CNN with policy + value heads** trained on
+Lichess games, wrapped in an **iterative-deepening alpha-beta search** that uses the
+value head as its leaf evaluator. Comes with a web UI to play against it.
+
+## Architecture highlights
+
+- **Input:** 18 board planes (12 pieces + castling rights + en-passant + fifty-move
+  clock), always from the side-to-move's perspective.
+- **Network:** residual conv tower (`board_encoder` → stem → N res-blocks) with two heads
+  - *policy* → 4096 from-to move logits (illegal moves masked; promotions decode to queen)
+  - *value* → scalar in [-1, 1], expected outcome for the side to move
+- **Training:** policy cross-entropy is learned only from the **winning side's moves**;
+  the value head learns from **every** position (including draws).
+- **Search:** iterative deepening + negamax alpha-beta, transposition table (Zobrist),
+  killer-move & history heuristics, MVV-LVA capture ordering, NN policy root ordering,
+  quiescence search, and a blended handcrafted-PST / NN-value leaf evaluation.
+- **Play:** small opening book + temperature sampling for opening variety; per-session
+  games in the web server.
 
 ## Quick Start
 

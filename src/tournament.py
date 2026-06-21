@@ -23,10 +23,11 @@ def play_game(engine: ChessAIEngine, stockfish: 'Stockfish',
         ai_turn = (board.turn == chess.WHITE) == ai_is_white
 
         if ai_turn:
-            move = engine.get_move(board)
+            move, _ = engine.get_move_with_eval(
+                board, use_book=True)                # book → iterative-deepening search
         else:
             stockfish.set_fen_position(board.fen())
-            sf_move = stockfish.get_best_move_time(100)  # 100ms per move
+            sf_move = stockfish.get_best_move_time(config.STOCKFISH_MOVETIME_MS)
             move = chess.Move.from_uci(sf_move)
 
         board.push(move)
@@ -44,6 +45,7 @@ def run_tournament(checkpoint_path: str = None):
         checkpoint_path = os.path.join(config.CHECKPOINT_DIR, "best.pt")
 
     os.makedirs(config.RESULTS_DIR, exist_ok=True)
+    config.TIME_LIMIT_SEC = config.TOURNAMENT_THINK_SEC   # faster moves for the tournament
     engine = ChessAIEngine(checkpoint_path)
 
     csv_path = os.path.join(config.RESULTS_DIR, "tournament.csv")

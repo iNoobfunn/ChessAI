@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+ngrok.exe
+stockfish/
+data/raw/
+data/processed/dataset.npz
